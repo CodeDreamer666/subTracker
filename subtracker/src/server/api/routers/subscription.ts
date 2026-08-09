@@ -26,7 +26,10 @@ const date = (value: string) => new Date(`${value}T00:00:00.000Z`);
 export const subscriptionRouter = createTRPCRouter({
   dashboard: protectedProcedure.query(({ ctx }) =>
     ctx.db.subscription.findMany({
-      where: { userId: ctx.session.user.id },
+      where: {
+        userId: ctx.session.user.id,
+        status: SubscriptionStatus.ACTIVE,
+      },
       orderBy: { nextRenewalOn: "asc" },
     }),
   ),
@@ -52,24 +55,22 @@ export const subscriptionRouter = createTRPCRouter({
     if (!subscription) throw new TRPCError({ code: "NOT_FOUND" });
     return subscription;
   }),
-  create: protectedProcedure
-    .input(fields)
-    .mutation(({ ctx, input }) =>
-      ctx.db.subscription.create({
-        data: {
-          userId: ctx.session.user.id,
-          name: input.name,
-          amountMinor: input.amountMinor,
-          currency: "USD",
-          billingInterval: input.billingInterval,
-          nextRenewalOn: date(input.nextRenewalOn),
-          category: input.category,
-          cancellationUrl: input.cancellationUrl,
-          reminderDaysBefore: input.reminderEnabled ? 3 : null,
-          source: "MANUAL",
-        },
-      }),
-    ),
+  create: protectedProcedure.input(fields).mutation(({ ctx, input }) =>
+    ctx.db.subscription.create({
+      data: {
+        userId: ctx.session.user.id,
+        name: input.name,
+        amountMinor: input.amountMinor,
+        currency: "USD",
+        billingInterval: input.billingInterval,
+        nextRenewalOn: date(input.nextRenewalOn),
+        category: input.category,
+        cancellationUrl: input.cancellationUrl,
+        reminderDaysBefore: input.reminderEnabled ? 3 : null,
+        source: "MANUAL",
+      },
+    }),
+  ),
   update: protectedProcedure
     .input(fields.partial().extend({ id: z.string().cuid() }))
     .mutation(async ({ ctx, input }) => {

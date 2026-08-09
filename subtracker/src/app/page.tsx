@@ -2,8 +2,13 @@ import { redirect } from "next/navigation";
 import { GoogleSignInButton } from "~/app/auth-buttons";
 import { getSession } from "~/server/better-auth/server";
 
-export default async function LandingPage() {
+export default async function LandingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ authError?: string }>;
+}) {
   const session = await getSession();
+  const { authError } = await searchParams;
 
   if (session?.user) redirect("/app");
 
@@ -27,6 +32,14 @@ export default async function LandingPage() {
           and what goes.
         </p>
         <GoogleSignInButton />
+        {authError ? (
+          <p
+            className="mx-auto mt-4 max-w-[420px] rounded-[10px] border border-[#f0c8cf] bg-[#fff5f6] px-4 py-3 text-sm text-[#9e283c] max-[760px]:ml-0"
+            role="alert"
+          >
+            Google sign-in could not be completed. Please try again.
+          </p>
+        ) : null}
         <p className="text-muted mx-auto my-[18px] max-w-[420px] text-xs leading-normal max-[760px]:ml-0">
           Google sign-in is for your account. Gmail access is asked for
           separately, only when you choose to scan.

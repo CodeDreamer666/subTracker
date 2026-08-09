@@ -13,6 +13,7 @@ export function GoogleSignInButton({ compact = false }: { compact?: boolean }) {
     const result = await authClient.signIn.social({
       provider: "google",
       callbackURL: "/app",
+      errorCallbackURL: "/auth/oauth-error",
     });
 
     setIsPending(false);
