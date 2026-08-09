@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #1e1e22;
+  --color-muted: #77757e;
+  --color-paper: #f8f8f7;
+  --color-line: #e7e5e3;
+  --color-violet: #4b40e9;
+  --color-soft-violet: #f0efff;
+}

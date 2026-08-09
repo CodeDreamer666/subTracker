@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionSource {
+  MANUAL
+  GMAIL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum RenewalIntent {
+  UNDECIDED
+  KEEP
+  CANCEL
+}
+
+enum GmailScanStatus {
+  RUNNING
+  REVIEW_READY
+  NO_RESULTS
+  FAILED
+  CONFIRMED
+}
+
+enum CandidateDecision {
+  PENDING
+  ACCEPTED
+  DISMISSED
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  userId             String
+  name               String
+  merchantKey        String?
+  category           String
+  planName           String?
+  amountMinor        Int
+  currency           String             @db.Char(3)
+  billingInterval    BillingInterval
+  nextRenewalOn      DateTime           @db.Date
+  cancellationUrl    String?
+  reminderDaysBefore Int?
+  source             SubscriptionSource
+  status             SubscriptionStatus @default(ACTIVE)
+  renewalIntent      RenewalIntent      @default(UNDECIDED)
+  cancelledAt        DateTime?
+  accessEndsOn       DateTime?          @db.Date
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, nextRenewalOn])
+  @@index([userId, createdAt])
+}
+
+model GmailScan {
+  id                String                 @id @default(cuid())
+  userId            String
+  status            GmailScanStatus
+  activeKey         String?                @unique
+  pageToken         String?
+  estimatedMessages Int                    @default(0)
+  processedMessages Int                    @default(0)
+  errorCode         String?
+  startedAt         DateTime               @default(now())
+  completedAt       DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  candidates        DetectedSubscription[]
+
+  @@index([userId, status])
+}
+
+model DetectedSubscription {
+  id              String            @id @default(cuid())
+  scanId          String
+  scan            GmailScan         @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  sourceMessageId String
+  merchantKey     String
+  name            String
+  amountMinor     Int
+  currency        String            @db.Char(3)
+  billingInterval BillingInterval
+  category        String?
+  planName        String?
+  nextRenewalOn   DateTime          @db.Date
+  messageDate     DateTime          @db.Date
+  decision        CandidateDecision @default(PENDING)
+  subscriptionId  String?
+
+  @@unique([scanId, merchantKey])
+}
