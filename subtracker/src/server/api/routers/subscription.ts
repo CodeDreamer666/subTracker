@@ -1,5 +1,6 @@
 import {
   RenewalIntent,
+  SubscriptionSource,
   SubscriptionStatus,
 } from "../../../../generated/prisma";
 import { TRPCError } from "@trpc/server";
@@ -7,12 +8,48 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 
 const id = z.object({ id: z.string().cuid() });
+const billingInterval = z.enum(["MONTHLY", "YEARLY"]);
+const manualPrice = z
+  .string()
+  .trim()
+  .max(12)
+  .transform((value, context) => {
+    if (!value) return null;
+
+    if (!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(value)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter a valid USD amount with up to two decimal places.",
+      });
+      return z.NEVER;
+    }
+
+    const [dollars = "0", cents = ""] = value.split(".");
+    const amountMinor =
+      Number.parseInt(dollars, 10) * 100 +
+      Number.parseInt(cents.padEnd(2, "0") || "0", 10);
+
+    if (!Number.isSafeInteger(amountMinor) || amountMinor > 100_000_000) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter a price below $1,000,000.",
+      });
+      return z.NEVER;
+    }
+
+    return amountMinor;
+  });
+const manualCreateFields = z.object({
+  name: z.string().trim().min(1).max(120),
+  price: manualPrice,
+  billingInterval: billingInterval.nullable(),
+  nextRenewalOn: z.string().date().nullable(),
+});
 const fields = z.object({
   name: z.string().trim().min(1).max(120),
-  amountMinor: z.number().int().positive(),
-  billingInterval: z.enum(["MONTHLY", "YEARLY"]),
-  nextRenewalOn: z.string().date(),
-  category: z.string().trim().min(1).max(60),
+  amountMinor: z.number().int().nonnegative().max(100_000_000).nullable(),
+  billingInterval: billingInterval.nullable(),
+  nextRenewalOn: z.string().date().nullable(),
   cancellationUrl: z
     .string()
     .url()
@@ -55,22 +92,20 @@ export const subscriptionRouter = createTRPCRouter({
     if (!subscription) throw new TRPCError({ code: "NOT_FOUND" });
     return subscription;
   }),
-  create: protectedProcedure.input(fields).mutation(({ ctx, input }) =>
-    ctx.db.subscription.create({
-      data: {
-        userId: ctx.session.user.id,
-        name: input.name,
-        amountMinor: input.amountMinor,
-        currency: "USD",
-        billingInterval: input.billingInterval,
-        nextRenewalOn: date(input.nextRenewalOn),
-        category: input.category,
-        cancellationUrl: input.cancellationUrl,
-        reminderDaysBefore: input.reminderEnabled ? 3 : null,
-        source: "MANUAL",
-      },
+  create: protectedProcedure
+    .input(manualCreateFields)
+    .mutation(async ({ ctx, input }) => {
+      return await ctx.db.subscription.create({
+        data: {
+          userId: ctx.session.user.id,
+          name: input.name,
+          amountMinor: input.price,
+          billingInterval: input.billingInterval,
+          nextRenewalOn: input.nextRenewalOn ? date(input.nextRenewalOn) : null,
+          source: SubscriptionSource.MANUAL,
+        },
+      });
     }),
-  ),
   update: protectedProcedure
     .input(fields.partial().extend({ id: z.string().cuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -88,7 +123,11 @@ export const subscriptionRouter = createTRPCRouter({
         where: { id: subscriptionId },
         data: {
           ...changes,
-          ...(nextRenewalOn ? { nextRenewalOn: date(nextRenewalOn) } : {}),
+          ...(nextRenewalOn === undefined
+            ? {}
+            : {
+                nextRenewalOn: nextRenewalOn ? date(nextRenewalOn) : null,
+              }),
           ...(reminderEnabled === undefined
             ? {}
             : { reminderDaysBefore: reminderEnabled ? 3 : null }),

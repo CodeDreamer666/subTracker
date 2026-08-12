@@ -105,12 +105,10 @@ model Subscription {
     userId             String
     name               String
     merchantKey        String?
-    category           String
     planName           String?
-    amountMinor        Int
-    currency           String             @db.Char(3)
-    billingInterval    BillingInterval
-    nextRenewalOn      DateTime           @db.Date
+    amountMinor        Int?
+    billingInterval    BillingInterval?
+    nextRenewalOn      DateTime?          @db.Date
     cancellationUrl    String?
     reminderDaysBefore Int?
     source             SubscriptionSource
@@ -151,12 +149,10 @@ model DetectedSubscription {
     sourceMessageId String
     merchantKey     String
     name            String
-    amountMinor     Int
-    currency        String            @db.Char(3)
-    billingInterval BillingInterval
-    category        String?
+    amountMinor     Int?
+    billingInterval BillingInterval?
     planName        String?
-    nextRenewalOn   DateTime          @db.Date
+    nextRenewalOn   DateTime?         @db.Date
     messageDate     DateTime          @db.Date
     decision        CandidateDecision @default(PENDING)
     subscriptionId  String?

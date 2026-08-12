@@ -15,24 +15,23 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
 import { api } from "~/trpc/react";
+import { ManualSubscriptionDialog } from "./manual-subscription-dialog";
 
 type SubscriptionItem = {
   id: string;
   name: string;
-  amountMinor: number;
-  currency: string;
-  billingInterval: "MONTHLY" | "YEARLY";
-  nextRenewalOn: Date;
-  category: string;
+  amountMinor: number | null;
+  billingInterval: "MONTHLY" | "YEARLY" | null;
+  nextRenewalOn: Date | null;
   cancellationUrl: string | null;
   status: "ACTIVE" | "CANCELLED";
   renewalIntent: "UNDECIDED" | "KEEP" | "CANCEL";
 };
 
-function formatCurrency(amountMinor: number, code: string) {
+function formatCurrency(amountMinor: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: code,
+    currency: "USD",
     maximumFractionDigits: 2,
   }).format(amountMinor / 100);
 }
@@ -94,9 +93,9 @@ export default function DashboardPage() {
             Decide what to keep or cancel.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/app/add">Add subscription</Link>
-        </Button>
+        <ManualSubscriptionDialog
+          trigger={<Button variant="outline">Add subscription</Button>}
+        />
       </header>
 
       <section
@@ -190,11 +189,11 @@ function DashboardEmptyState() {
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button asChild>
-            <Link href="/app/add">Add subscription</Link>
+            <Link href="/app/settings">Scan Gmail</Link>
           </Button>
-          <Button asChild variant="outline">
-            <Link href="/app/settings">Open Settings</Link>
-          </Button>
+          <ManualSubscriptionDialog
+            trigger={<Button variant="outline">Add subscription</Button>}
+          />
         </div>
       </div>
       <ol className="border-line grid content-center gap-4 border-t pt-6 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-7">
@@ -243,14 +242,9 @@ function SubscriptionRow({
         <span className="bg-soft-violet text-violet grid size-10 shrink-0 place-items-center rounded-[10px] font-extrabold">
           {subscription.name.charAt(0).toUpperCase()}
         </span>
-        <span className="min-w-0">
-          <strong className="block truncate text-sm">
-            {subscription.name}
-          </strong>
-          <small className="text-muted block truncate text-xs">
-            {subscription.category}
-          </small>
-        </span>
+        <strong className="min-w-0 truncate text-sm">
+          {subscription.name}
+        </strong>
         <DecisionBadge className="ml-auto sm:hidden" decision={decision} />
       </div>
 
@@ -260,10 +254,23 @@ function SubscriptionRow({
             Cost
           </dt>
           <dd className="mt-1 font-semibold">
-            {formatCurrency(subscription.amountMinor, subscription.currency)}
-            <span className="text-muted ml-1 text-xs font-normal">
-              /{subscription.billingInterval === "MONTHLY" ? "mo" : "yr"}
-            </span>
+            {subscription.amountMinor !== null ? (
+              <>
+                {formatCurrency(subscription.amountMinor)}
+                {subscription.billingInterval ? (
+                  <span className="text-muted ml-1 text-xs font-normal">
+                    /
+                    {subscription.billingInterval === "MONTHLY"
+                      ? "month"
+                      : "year"}
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <span className="text-muted text-xs font-normal">
+                Price not found
+              </span>
+            )}
           </dd>
         </div>
         <div>
@@ -271,7 +278,13 @@ function SubscriptionRow({
             Next renewal
           </dt>
           <dd className="mt-1 font-semibold">
-            {formatDate(subscription.nextRenewalOn)}
+            {subscription.nextRenewalOn ? (
+              formatDate(subscription.nextRenewalOn)
+            ) : (
+              <span className="text-muted text-xs font-normal">
+                Renewal date not found
+              </span>
+            )}
           </dd>
         </div>
       </dl>

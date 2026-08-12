@@ -1,43 +1,103 @@
-import type { GmailMessage } from "~/server/gmail/detector";
+import type { EmailForDetection } from "./detection/detection-types";
 
 const gmailApi = "https://gmail.googleapis.com/gmail/v1/users/me";
 
-export type GmailMessagePage = {
-  messages?: Array<{ id: string }>;
-  nextPageToken?: string;
-  resultSizeEstimate?: number;
+type GmailPart = {
+    mimeType?: string;
+    headers?: Array<{ name: string; value: string }>;
+    body?: { data?: string };
+    parts?: GmailPart[];
 };
 
-const request = async <T>(path: string, accessToken: string) => {
-  const response = await fetch(`${gmailApi}${path}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error(`GMAIL_${response.status}`);
-  }
-
-  return (await response.json()) as T;
+type GmailMessage = {
+    id?: string;
+    internalDate?: string;
+    snippet?: string;
+    payload?: GmailPart;
 };
 
-export const listSubscriptionMessages = (
-  accessToken: string,
-  pageToken?: string | null,
-) => {
-  const query = new URLSearchParams({
-    q: "newer_than:12m (subscription OR renewal OR receipt OR invoice OR billing)",
-    maxResults: "20",
-  });
-  if (pageToken) query.set("pageToken", pageToken);
-  return request<GmailMessagePage>(
-    `/messages?${query.toString()}`,
-    accessToken,
-  );
+type GmailMessagePage = {
+    messages?: Array<{ id?: string }>;
 };
 
-export const getGmailMessage = (accessToken: string, messageId: string) =>
-  request<GmailMessage>(
-    `/messages/${encodeURIComponent(messageId)}?format=full`,
-    accessToken,
-  );
+function findTextBody(part: GmailPart): string {
+    if (part.mimeType === "text/plain" && part.body?.data) {
+        return Buffer.from(part.body.data, "base64url").toString("utf8");
+    }
+
+    for (const child of part.parts ?? []) {
+        const text = findTextBody(child);
+        if (text) return text;
+    }
+
+    return "";
+}
+
+function getHeader(
+    messageHeaders: Array<{ name: string; value: string }>,
+    name: string,
+) {
+    return (
+        messageHeaders.find(
+            (header) => header.name.toLowerCase() === name.toLowerCase(),
+        )?.value ?? ""
+    );
+}
+
+export async function listGmailMessageIds(accessToken: string) {
+    const listUrl = new URL(`${gmailApi}/messages`);
+
+    listUrl.searchParams.set("labelIds", "INBOX");
+    listUrl.searchParams.set("maxResults", "500");
+
+    const response = await fetch(listUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: "no-store",
+    });
+
+    if (!response.ok) {
+        throw new Error(`GMAIL_${response.status}`);
+    }
+
+    const data = (await response.json()) as GmailMessagePage;
+    
+    return (data.messages ?? []).flatMap((message) =>
+        message.id ? [message.id] : [],
+    );
+}
+
+export async function getGmailMessageForDetection(
+    accessToken: string,
+    messageId: string,
+): Promise<EmailForDetection | null> {
+    const messageUrl = new URL(
+        `${gmailApi}/messages/${encodeURIComponent(messageId)}`,
+    );
+    messageUrl.searchParams.set("format", "full");
+    messageUrl.searchParams.set(
+        "fields",
+        "id,internalDate,snippet,payload(headers,body/data,parts(mimeType,body/data,parts(mimeType,body/data)))",
+    );
+
+    const response = await fetch(messageUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: "no-store",
+    });
+
+    if (!response.ok) return null;
+
+    const message = (await response.json()) as GmailMessage;
+    if (!message.id) return null;
+
+    const messageHeaders = message.payload?.headers ?? [];
+
+    return {
+        id: message.id,
+        from: getHeader(messageHeaders, "From"),
+        subject: getHeader(messageHeaders, "Subject"),
+        date: getHeader(messageHeaders, "Date"),
+        internalDate: message.internalDate ?? "",
+        snippet: message.snippet ?? "",
+        textBody: findTextBody(message.payload ?? {}),
+    };
+}
