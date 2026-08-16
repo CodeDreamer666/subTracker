@@ -30,6 +30,15 @@ import { ManualSubscriptionDialog } from "../manual-subscription-dialog";
 
 const gmailReadonlyScope = "https://www.googleapis.com/auth/gmail.readonly";
 
+type GmailScanPeriod = "WEEK" | "MONTH" | "YEAR" | "ALL";
+
+const gmailScanPeriods: Array<{ label: string; value: GmailScanPeriod }> = [
+    { label: "Past week", value: "WEEK" },
+    { label: "Past month", value: "MONTH" },
+    { label: "Past year", value: "YEAR" },
+    { label: "All mail", value: "ALL" },
+];
+
 function formatCost(
     amountMinor: number | null,
     billingInterval: "MONTHLY" | "YEARLY" | null,
@@ -55,6 +64,7 @@ export default function SettingsPage() {
     const [signOutError, setSignOutError] = useState<string | null>(null);
     const [isConnecting, setIsConnecting] = useState(false);
     const [scanDialogOpen, setScanDialogOpen] = useState(false);
+    const [scanPeriod, setScanPeriod] = useState<GmailScanPeriod>("YEAR");
     const [manualDialogOpen, setManualDialogOpen] = useState(false);
     const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>(
         [],
@@ -116,7 +126,7 @@ export default function SettingsPage() {
         setSelectedCandidateIds([]);
 
         try {
-            await scan.mutateAsync();
+            await scan.mutateAsync({ period: scanPeriod });
         } catch {
             return;
         }
@@ -364,7 +374,6 @@ export default function SettingsPage() {
                         </div>
                     ) : scan.data && candidates.length === 0 ? (
                         <div className="border-line rounded-xl border bg-[#faf9f8] p-5">
-                            <Badge variant="outline">Scan complete</Badge>
                             <p className="mt-3 text-sm font-semibold">
                                 No subscription emails were found.
                             </p>
@@ -379,7 +388,6 @@ export default function SettingsPage() {
                     ) : candidates.length ? (
                         <div className="grid gap-4">
                             <div className="border-line rounded-xl border bg-[#faf9f8] p-5">
-                                <Badge variant="success">Scan complete</Badge>
                                 <p className="mt-3 text-sm font-semibold">
                                     Found {candidates.length} possible subscription
                                     {candidates.length === 1 ? "" : "s"}.
@@ -419,7 +427,7 @@ export default function SettingsPage() {
                                 ))}
                             </div>
 
-                            <div>
+                            <div className="w-full flex justify-end items-center">
                                 <Button
                                     disabled={
                                         selectedCandidateIds.length === 0 ||
@@ -442,6 +450,27 @@ export default function SettingsPage() {
                         </div>
                     ) : (
                         <div className="grid gap-5">
+                            <fieldset className="border-line grid gap-3 rounded-xl border p-4">
+                                <legend className="px-1 text-sm font-semibold">
+                                    Scan period
+                                </legend>
+                                {gmailScanPeriods.map((period) => (
+                                    <label
+                                        className="flex cursor-pointer items-center gap-3 text-sm"
+                                        key={period.value}
+                                    >
+                                        <input
+                                            checked={scanPeriod === period.value}
+                                            className="accent-violet size-4"
+                                            name="gmail-scan-period"
+                                            onChange={() => setScanPeriod(period.value)}
+                                            type="radio"
+                                            value={period.value}
+                                        />
+                                        {period.label}
+                                    </label>
+                                ))}
+                            </fieldset>
                             <ul className="text-muted grid list-disc gap-3 pl-5 text-sm leading-6 marker:text-[#8d86ee]">
                                 <li>
                                     subTracker uses read-only Gmail access for scanning. It does

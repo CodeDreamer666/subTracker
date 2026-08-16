@@ -1,5 +1,4 @@
 "use client";
-
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "~/components/ui/button";
@@ -20,6 +19,13 @@ type ManualSubscriptionDialogProps = {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   showOverviewAfterCreate?: boolean;
+  subscription?: {
+    id: string;
+    name: string;
+    amountMinor: number | null;
+    billingInterval: "MONTHLY" | "YEARLY" | null;
+    nextRenewalOn: Date | null;
+  };
 };
 
 function textField(formData: FormData, name: string) {
@@ -32,17 +38,22 @@ export function ManualSubscriptionDialog({
   open,
   onOpenChange,
   showOverviewAfterCreate = false,
+  subscription,
 }: ManualSubscriptionDialogProps) {
   const router = useRouter();
   const utils = api.useUtils();
   const formRef = useRef<HTMLFormElement>(null);
   const [internalOpen, setInternalOpen] = useState(false);
   const createSubscription = api.subscription.create.useMutation();
+  const updateSubscription = api.subscription.update.useMutation();
   const isOpen = open ?? internalOpen;
+  const isPending =
+    createSubscription.isPending || updateSubscription.isPending;
 
   function resetForm() {
     formRef.current?.reset();
     createSubscription.reset();
+    updateSubscription.reset();
   }
 
   function setDialogOpen(nextOpen: boolean) {
@@ -51,7 +62,7 @@ export function ManualSubscriptionDialog({
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (createSubscription.isPending) return;
+    if (isPending) return;
     setDialogOpen(nextOpen);
     if (!nextOpen) resetForm();
   }
@@ -59,20 +70,30 @@ export function ManualSubscriptionDialog({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     createSubscription.reset();
+    updateSubscription.reset();
     const formData = new FormData(event.currentTarget);
     const billingInterval = textField(formData, "billingInterval");
     const nextRenewalOn = textField(formData, "nextRenewalOn");
+    const normalizedBillingInterval: "MONTHLY" | "YEARLY" | null =
+      billingInterval === "MONTHLY" || billingInterval === "YEARLY"
+        ? billingInterval
+        : null;
+    const values = {
+      name: textField(formData, "name"),
+      price: textField(formData, "price"),
+      billingInterval: normalizedBillingInterval,
+      nextRenewalOn: nextRenewalOn || null,
+    };
 
     try {
-      await createSubscription.mutateAsync({
-        name: textField(formData, "name"),
-        price: textField(formData, "price"),
-        billingInterval:
-          billingInterval === "MONTHLY" || billingInterval === "YEARLY"
-            ? billingInterval
-            : null,
-        nextRenewalOn: nextRenewalOn || null,
-      });
+      if (subscription) {
+        await updateSubscription.mutateAsync({
+          id: subscription.id,
+          ...values,
+        });
+      } else {
+        await createSubscription.mutateAsync(values);
+      }
     } catch {
       return;
     }
@@ -81,7 +102,7 @@ export function ManualSubscriptionDialog({
     setDialogOpen(false);
     resetForm();
 
-    if (showOverviewAfterCreate) router.push("/app");
+    if (!subscription && showOverviewAfterCreate) router.push("/app");
   }
 
   return (
@@ -89,9 +110,13 @@ export function ManualSubscriptionDialog({
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add subscription</DialogTitle>
+          <DialogTitle>
+            {subscription ? "Edit subscription" : "Add subscription"}
+          </DialogTitle>
           <DialogDescription>
-            Add a subscription that Gmail did not find.
+            {subscription
+              ? "Update the subscription details shown in Overview."
+              : "Add a subscription that Gmail did not find."}
           </DialogDescription>
         </DialogHeader>
 
@@ -105,6 +130,7 @@ export function ManualSubscriptionDialog({
               name="name"
               placeholder="ChatGPT Plus"
               required
+              defaultValue={subscription?.name}
             />
           </label>
 
@@ -123,6 +149,12 @@ export function ManualSubscriptionDialog({
                 name="price"
                 pattern="(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?"
                 placeholder="20.00"
+                defaultValue={
+                  subscription?.amountMinor === null ||
+                  subscription?.amountMinor === undefined
+                    ? ""
+                    : (subscription.amountMinor / 100).toFixed(2)
+                }
               />
             </span>
             <small className="text-muted font-normal">USD</small>
@@ -135,7 +167,7 @@ export function ManualSubscriptionDialog({
             <select
               className="border-line focus:ring-violet/15 h-11 rounded-[10px] border bg-white px-3 font-normal transition-shadow outline-none focus:border-[#8d86ee] focus:ring-2"
               name="billingInterval"
-              defaultValue=""
+              defaultValue={subscription?.billingInterval ?? ""}
             >
               <option value="">Not specified</option>
               <option value="MONTHLY">Monthly</option>
@@ -152,10 +184,13 @@ export function ManualSubscriptionDialog({
               className="border-line focus:ring-violet/15 h-11 rounded-[10px] border bg-white px-3 font-normal transition-shadow outline-none focus:border-[#8d86ee] focus:ring-2"
               name="nextRenewalOn"
               type="date"
+              defaultValue={subscription?.nextRenewalOn
+                ?.toISOString()
+                .slice(0, 10)}
             />
           </label>
 
-          {createSubscription.error ? (
+          {createSubscription.error || updateSubscription.error ? (
             <p className="text-sm text-[#c02846]" role="alert">
               Check the subscription details and try again.
             </p>
@@ -163,18 +198,18 @@ export function ManualSubscriptionDialog({
 
           <DialogFooter>
             <DialogClose asChild>
-              <Button
-                disabled={createSubscription.isPending}
-                type="button"
-                variant="outline"
-              >
+              <Button disabled={isPending} type="button" variant="outline">
                 Cancel
               </Button>
             </DialogClose>
-            <Button disabled={createSubscription.isPending} type="submit">
-              {createSubscription.isPending
-                ? "Adding subscription…"
-                : "Add subscription"}
+            <Button disabled={isPending} type="submit">
+              {isPending
+                ? subscription
+                  ? "Saving changes…"
+                  : "Adding subscription…"
+                : subscription
+                  ? "Save changes"
+                  : "Add subscription"}
             </Button>
           </DialogFooter>
         </form>

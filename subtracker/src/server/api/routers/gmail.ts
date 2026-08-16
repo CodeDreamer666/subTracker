@@ -20,6 +20,15 @@ import normalizeCandidateAmountsToUsd from "~/server/gmail/normalizeCandidateAmo
 export const gmailReadonlyScope =
     "https://www.googleapis.com/auth/gmail.readonly";
 
+const scanPeriod = z.enum(["WEEK", "MONTH", "YEAR", "ALL"]);
+
+const gmailTimeFilters: Record<z.infer<typeof scanPeriod>, string | null> = {
+    WEEK: "newer_than:7d",
+    MONTH: "newer_than:1m",
+    YEAR: "newer_than:1y",
+    ALL: null,
+};
+
 type NormalizedSubscriptionCandidate = Omit<
     SubscriptionCandidate,
     "sourceCurrency"
@@ -97,7 +106,9 @@ export const gmailRouter = createTRPCRouter({
         };
     }),
 
-    scan: protectedProcedure.mutation(async ({ ctx }) => {
+    scan: protectedProcedure
+        .input(z.object({ period: scanPeriod }))
+        .mutation(async ({ ctx, input }) => {
         const account = await ctx.db.account.findFirst({
             where: { userId: ctx.session.user.id, providerId: "google" },
             select: { scope: true },
@@ -115,7 +126,10 @@ export const gmailRouter = createTRPCRouter({
         let messageIds: string[];
 
         try {
-            messageIds = await listGmailMessageIds(accessToken);
+            messageIds = await listGmailMessageIds(
+                accessToken,
+                gmailTimeFilters[input.period],
+            );
         } catch {
             throw new TRPCError({
                 code: "BAD_GATEWAY",
@@ -136,7 +150,7 @@ export const gmailRouter = createTRPCRouter({
                     "Subscription prices could not be converted to USD. Please try again.",
             });
         }
-    }),
+        }),
 
     confirm: protectedProcedure
         .input(

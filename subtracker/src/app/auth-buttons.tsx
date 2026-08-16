@@ -2,7 +2,13 @@
 import { useState } from "react";
 import { authClient } from "~/server/better-auth/client";
 
-export function GoogleSignInButton({ compact = false }: { compact?: boolean }) {
+export function GoogleSignInButton({
+  compact = false,
+  label,
+}: {
+  compact?: boolean;
+  label?: string;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
@@ -37,9 +43,7 @@ export function GoogleSignInButton({ compact = false }: { compact?: boolean }) {
       >
         {isPending
           ? "Signing in..."
-          : compact
-            ? "Sign in"
-            : "Continue with Google →"}
+          : (label ?? (compact ? "Sign in" : "Get Started"))}
       </button>
 
       {error ? (

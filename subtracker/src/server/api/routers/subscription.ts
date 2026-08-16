@@ -63,10 +63,7 @@ const date = (value: string) => new Date(`${value}T00:00:00.000Z`);
 export const subscriptionRouter = createTRPCRouter({
   dashboard: protectedProcedure.query(({ ctx }) =>
     ctx.db.subscription.findMany({
-      where: {
-        userId: ctx.session.user.id,
-        status: SubscriptionStatus.ACTIVE,
-      },
+      where: { userId: ctx.session.user.id },
       orderBy: { nextRenewalOn: "asc" },
     }),
   ),
@@ -107,7 +104,11 @@ export const subscriptionRouter = createTRPCRouter({
       });
     }),
   update: protectedProcedure
-    .input(fields.partial().extend({ id: z.string().cuid() }))
+    .input(
+      fields
+        .partial()
+        .extend({ id: z.string().cuid(), price: manualPrice.optional() }),
+    )
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.subscription.findFirst({
         where: { id: input.id, userId: ctx.session.user.id },
@@ -117,12 +118,14 @@ export const subscriptionRouter = createTRPCRouter({
         id: subscriptionId,
         nextRenewalOn,
         reminderEnabled,
+        price,
         ...changes
       } = input;
       return ctx.db.subscription.update({
         where: { id: subscriptionId },
         data: {
           ...changes,
+          ...(price === undefined ? {} : { amountMinor: price }),
           ...(nextRenewalOn === undefined
             ? {}
             : {
@@ -144,6 +147,15 @@ export const subscriptionRouter = createTRPCRouter({
       if (!updated.count) throw new TRPCError({ code: "NOT_FOUND" });
       return { success: true };
     }),
+  deleteSubscription: protectedProcedure
+    .input(id)
+    .mutation(async ({ ctx, input }) => {
+      const deleted = await ctx.db.subscription.deleteMany({
+        where: { id: input.id, userId: ctx.session.user.id },
+      });
+      if (!deleted.count) throw new TRPCError({ code: "NOT_FOUND" });
+      return { success: true };
+    }),
   markCancelled: protectedProcedure
     .input(id)
     .mutation(async ({ ctx, input }) => {
@@ -159,6 +171,25 @@ export const subscriptionRouter = createTRPCRouter({
           status: SubscriptionStatus.CANCELLED,
           cancelledAt: new Date(),
           accessEndsOn: subscription.nextRenewalOn,
+        },
+      });
+    }),
+  revertCancellation: protectedProcedure
+    .input(id)
+    .mutation(async ({ ctx, input }) => {
+      const subscription = await ctx.db.subscription.findFirst({
+        where: { id: input.id, userId: ctx.session.user.id },
+      });
+      if (!subscription) throw new TRPCError({ code: "NOT_FOUND" });
+      if (subscription.status === SubscriptionStatus.ACTIVE)
+        return subscription;
+
+      return ctx.db.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          status: SubscriptionStatus.ACTIVE,
+          cancelledAt: null,
+          accessEndsOn: null,
         },
       });
     }),

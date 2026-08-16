@@ -16,6 +16,7 @@ function isCurrentPath(pathname: string, href: string) {
 export function AppNavigation() {
   const pathname = usePathname();
   const router = useRouter();
+  const manageIsCurrent = isCurrentPath(pathname, "/app/settings");
 
   async function handleSignOut() {
     await authClient.signOut();
@@ -62,7 +63,11 @@ export function AppNavigation() {
       </aside>
 
       <nav
-        className="border-line fixed right-0 bottom-0 left-0 z-20 hidden grid-cols-2 gap-2 border-t bg-white/95 px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(39,36,48,0.1)] backdrop-blur-md max-[760px]:grid"
+        className={`border-line before:bg-soft-violet fixed right-0 bottom-0 left-0 z-20 hidden grid-cols-2 gap-2 border-t bg-white/95 px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(39,36,48,0.1)] backdrop-blur-md before:pointer-events-none before:absolute before:top-2 before:left-3 before:h-14 before:w-[calc(50%-1rem)] before:rounded-xl before:shadow-[inset_0_0_0_1px_rgba(75,64,233,0.08)] before:transition-transform before:duration-200 before:ease-out before:content-[''] motion-reduce:before:transition-none max-[760px]:grid ${
+          manageIsCurrent
+            ? "before:translate-x-[calc(100%+0.5rem)]"
+            : "before:translate-x-0"
+        }`}
         aria-label="Mobile navigation"
       >
         {navigation.map((item) => {
@@ -72,10 +77,10 @@ export function AppNavigation() {
           return (
             <Link
               aria-current={isCurrent ? "page" : undefined}
-              className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[.72rem] font-[680] no-underline transition-[background-color,color,box-shadow] ${
+              className={`relative z-10 flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[.72rem] font-[680] no-underline transition-colors duration-200 ${
                 isCurrent
-                  ? "bg-soft-violet text-violet shadow-[inset_0_0_0_1px_rgba(75,64,233,0.08)]"
-                  : "text-[#77727f] hover:bg-[#f5f3f8] hover:text-[#27242d]"
+                  ? "text-violet"
+                  : "text-[#77727f] hover:text-[#27242d]"
               }`}
               href={item.href}
               key={item.href}

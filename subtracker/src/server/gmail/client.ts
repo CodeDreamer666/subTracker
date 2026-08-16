@@ -44,11 +44,15 @@ function getHeader(
     );
 }
 
-export async function listGmailMessageIds(accessToken: string) {
+export async function listGmailMessageIds(
+    accessToken: string,
+    timeFilter: string | null,
+) {
     const listUrl = new URL(`${gmailApi}/messages`);
 
     listUrl.searchParams.set("labelIds", "INBOX");
     listUrl.searchParams.set("maxResults", "500");
+    if (timeFilter) listUrl.searchParams.set("q", timeFilter);
 
     const response = await fetch(listUrl, {
         headers: { Authorization: `Bearer ${accessToken}` },
