@@ -13,7 +13,6 @@ import {
     AlertDialogTrigger,
 } from "~/components/ui/alert-dialog";
 import { Button } from "~/components/ui/button";
-import { Separator } from "~/components/ui/separator";
 import { api } from "~/trpc/react";
 import { ManualSubscriptionDialog } from "./manual-subscription-dialog";
 
@@ -44,6 +43,7 @@ function formatDate(value: Date) {
 export default function DashboardPage() {
     const subscriptions = api.subscription.dashboard.useQuery();
     const utils = api.useUtils();
+
     const deleteSubscription = api.subscription.deleteSubscription.useMutation({
         onSuccess: async () => {
             await utils.subscription.dashboard.invalidate();
@@ -53,39 +53,33 @@ export default function DashboardPage() {
     const items = subscriptions.data ?? [];
 
     return (
-        <>
-            <header className="flex items-end justify-between gap-5 py-10 max-[760px]:items-start max-[760px]:py-7">
+        <section className="mx-auto w-full max-w-[920px] px-6 py-[clamp(48px,8vw,88px)] max-[620px]:px-4 max-[620px]:pt-9">
+            <header className="mb-9 flex flex-col gap-4">
                 <div>
-                    <p className="text-violet m-0 text-[.69rem] font-extrabold tracking-[.13em]">
-                        OVERVIEW
-                    </p>
-                    <h1 className="my-2 text-[clamp(2rem,4vw,2.75rem)] leading-none tracking-[-.055em]">
+                    <h1 className="font-display m-0 text-[clamp(36px,6vw,56px)] leading-[1.02] tracking-[-0.03em]">
                         Your subscriptions
                     </h1>
-                    <p className="text-muted leading-normal">
-                        Review the subscriptions you track.
+                    <p className="text-muted mt-4 max-w-[58ch] text-[15px] leading-[1.6]">
+                        Review what you pay and when it renews. Subscriptions left here are
+                        the ones you want to keep.
                     </p>
                 </div>
                 <ManualSubscriptionDialog
-                    trigger={<Button variant="outline">Add subscription</Button>}
+                    trigger={
+                        <Button className="border-brand bg-brand text-surface min-h-11 shrink-0 rounded-xl px-[19px] shadow-[0_9px_22px_color-mix(in_oklch,var(--accent)_22%,transparent)] hover:-translate-y-px max-[430px]:px-3">
+                            Add manually
+                        </Button>
+                    }
                 />
             </header>
 
-            <section>
-                <div className="flex items-end justify-between gap-4 pb-4">
-                    <div>
-                        <h2 className="mb-1 text-xl tracking-[-.035em]">Subscriptions</h2>
-                        <p className="text-muted text-sm leading-normal">
-                            Review costs and upcoming renewals.
-                        </p>
-                    </div>
-                </div>
-                <Separator />
-
+            <div className="border-line rounded-[22px] border bg-[color-mix(in_oklch,var(--bg)_48%,var(--surface))] p-5 shadow-[0_18px_55px_var(--fg-soft)] max-[620px]:p-3.5">
                 {subscriptions.isLoading ? (
-                    <p className="text-muted py-8 text-sm">Loading subscriptions…</p>
+                    <p className="text-muted grid min-h-48 place-items-center text-sm">
+                        Loading subscriptions…
+                    </p>
                 ) : items.length ? (
-                    <div className="grid gap-3 pt-4">
+                    <div className="grid gap-3">
                         {items.map((subscription) => (
                             <SubscriptionRow
                                 key={subscription.id}
@@ -103,70 +97,44 @@ export default function DashboardPage() {
                     <DashboardEmptyState />
                 )}
 
-                <div className="text-muted border-line mt-6 border-t pt-5 text-sm leading-6">
-                    <p className="font-medium text-[#5d5968]">
-                        Subscriptions left in your overview are treated as ones you want to
-                        keep.
-                    </p>
-                    <p className="mt-1 text-xs">
-                        If you no longer want a subscription, cancel it with the provider
-                        first, then remove it from subTracker.
-                    </p>
-                </div>
-            </section>
+                <p className="text-muted mt-4 flex gap-2.5 text-xs leading-[1.55]">
+                    <svg className="size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                    </svg>
+
+                    <span>
+                        Cancel with the provider before using Cancel here. subTracker
+                        removes the item from this list only.
+                    </span>
+                </p>
+            </div>
 
             {deleteSubscription.error ? (
                 <p className="mt-4 text-sm text-[#c02846]" role="alert">
                     Your change could not be saved. Please try again.
                 </p>
             ) : null}
-        </>
+        </section>
     );
 }
 
 function DashboardEmptyState() {
     return (
-        <section className="border-line mt-4 grid gap-8 rounded-[14px] border bg-white p-6 sm:grid-cols-[minmax(0,1.2fr)_minmax(240px,.8fr)] sm:p-8">
+        <section className="border-line bg-surface grid min-h-48 place-items-center rounded-2xl border border-dashed p-7 text-center">
             <div>
-                <h2 className="mt-4 mb-2 text-2xl tracking-[-.045em]">
-                    Add your first subscription
-                </h2>
-                <p className="text-muted max-w-md text-sm leading-6">
-                    Connect Gmail from Settings or enter a subscription yourself.
+                <h2 className="font-display m-0 text-2xl">Your overview is clear</h2>
+                <p className="text-muted mt-2 text-sm">
+                    Add a subscription manually or scan Gmail from Manage.
                 </p>
-                <div className="mt-6 flex flex-wrap gap-3">
+                <div className="mt-5 flex flex-wrap justify-center gap-3">
                     <Button asChild>
-                        <Link href="/app/settings">Scan Gmail</Link>
+                        <Link href="/app/manage">Scan Gmail</Link>
                     </Button>
                     <ManualSubscriptionDialog
-                        trigger={<Button variant="outline">Add subscription</Button>}
+                        trigger={<Button variant="outline">Add manually</Button>}
                     />
                 </div>
             </div>
-            <ol className="border-line grid content-center gap-4 border-t pt-6 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-7">
-                <li className="grid grid-cols-[28px_1fr] gap-3 text-sm">
-                    <span className="bg-soft-violet text-violet grid size-7 place-items-center rounded-full text-xs font-bold">
-                        1
-                    </span>
-                    <span>
-                        <strong className="block">Add or connect</strong>
-                        <small className="text-muted">
-                            Choose the quickest way to begin.
-                        </small>
-                    </span>
-                </li>
-                <li className="grid grid-cols-[28px_1fr] gap-3 text-sm">
-                    <span className="bg-soft-violet text-violet grid size-7 place-items-center rounded-full text-xs font-bold">
-                        2
-                    </span>
-                    <span>
-                        <strong className="block">Review subscriptions</strong>
-                        <small className="text-muted">
-                            Track costs and renewal dates in Overview.
-                        </small>
-                    </span>
-                </li>
-            </ol>
         </section>
     );
 }
@@ -187,20 +155,22 @@ function SubscriptionRow({
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     return (
-        <article className="border-line rounded-xl border bg-white p-4 sm:grid sm:grid-cols-[minmax(180px,1fr)_minmax(190px,.9fr)_auto] sm:items-center sm:gap-5 sm:px-5">
-            <div className="flex min-w-0 items-center gap-3">
-                <span className="bg-soft-violet text-violet grid size-10 shrink-0 place-items-center rounded-[10px] font-extrabold">
-                    {subscription.name.charAt(0).toUpperCase()}
-                </span>
-                <strong className="min-w-0 flex-1 truncate text-sm">
-                    {subscription.name}
-                </strong>
+        <article className="border-line bg-surface rounded-2xl border p-3">
+            <div className="border-line flex items-center justify-between gap-3.5 border-b pb-2.5">
+                <div className="flex min-w-0 items-center gap-3">
+                    <span className="border-line grid size-[38px] shrink-0 place-items-center rounded-[11px] border bg-[color-mix(in_oklch,var(--fg)_5%,var(--surface))] text-[13px] font-extrabold">
+                        {subscription.name.charAt(0).toUpperCase()}
+                    </span>
+                    <strong className="min-w-0 flex-1 truncate text-sm">
+                        {subscription.name}
+                    </strong>
+                </div>
                 <ManualSubscriptionDialog
                     subscription={subscription}
                     trigger={
                         <Button
                             aria-label="Edit subscription"
-                            className="text-muted size-8"
+                            className="text-muted hover:bg-ink-soft hover:text-ink grid size-11 shrink-0 place-items-center rounded-[10px]"
                             size="icon"
                             title="Edit subscription"
                             variant="ghost"
@@ -211,12 +181,12 @@ function SubscriptionRow({
                 />
             </div>
 
-            <dl className="border-line my-4 grid grid-cols-2 gap-3 border-y py-3 text-sm sm:my-0 sm:border-0 sm:py-0">
+            <dl className="border-line grid grid-cols-2 gap-5 border-b py-3 text-sm max-[430px]:grid-cols-1 max-[430px]:gap-3">
                 <div>
-                    <dt className="text-muted text-[.7rem] font-semibold tracking-[.06em] uppercase">
+                    <dt className="text-muted mb-1 font-mono text-[9px] font-bold tracking-[.07em] uppercase">
                         Cost
                     </dt>
-                    <dd className="mt-1 font-semibold">
+                    <dd className="font-mono text-xs font-bold">
                         {subscription.amountMinor !== null ? (
                             <>
                                 {formatCurrency(subscription.amountMinor)}
@@ -237,10 +207,10 @@ function SubscriptionRow({
                     </dd>
                 </div>
                 <div>
-                    <dt className="text-muted text-[.7rem] font-semibold tracking-[.06em] uppercase">
+                    <dt className="text-muted mb-1 font-mono text-[9px] font-bold tracking-[.07em] uppercase">
                         Next renewal
                     </dt>
-                    <dd className="mt-1 font-semibold">
+                    <dd className="text-muted text-xs">
                         {subscription.nextRenewalOn ? (
                             formatDate(subscription.nextRenewalOn)
                         ) : (
@@ -252,7 +222,7 @@ function SubscriptionRow({
                 </div>
             </dl>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end pt-2">
                 <AlertDialog
                     open={isDeleteDialogOpen}
                     onOpenChange={(open) => {
@@ -263,7 +233,7 @@ function SubscriptionRow({
                 >
                     <AlertDialogTrigger asChild>
                         <Button
-                            className="max-[640px]:h-11"
+                            className="min-h-11 rounded-lg px-4 text-[11px]"
                             disabled={isDeleting}
                             size="sm"
                             variant="outline"

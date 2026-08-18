@@ -1,96 +1,57 @@
 "use client";
-import { LayoutDashboard, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { authClient } from "~/server/better-auth/client";
+import { usePathname } from "next/navigation";
 
 const navigation = [
-  { href: "/app", label: "Overview", icon: LayoutDashboard },
-  { href: "/app/settings", label: "Manage", icon: SlidersHorizontal },
+    { href: "/app", label: "Overview" },
+    { href: "/app/manage", label: "Manage" },
 ] as const;
 
 function isCurrentPath(pathname: string, href: string) {
-  return href === "/app" ? pathname === href : pathname.startsWith(href);
+    return href === "/app" ? pathname === href : pathname.startsWith(href);
 }
 
 export function AppNavigation() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const manageIsCurrent = isCurrentPath(pathname, "/app/settings");
+    const pathname = usePathname();
 
-  async function handleSignOut() {
-    await authClient.signOut();
-    router.push("/");
-    router.refresh();
-  }
-
-  return (
-    <>
-      <aside className="border-line flex min-h-screen flex-col border-r bg-white px-[19px] pt-[31px] pb-[22px] max-[760px]:hidden">
-        <Link
-          href="/app"
-          className="text-ink text-[1.28rem] font-[760] tracking-[-0.07em] no-underline"
-        >
-          subTracker
-        </Link>
-        <nav
-          className="mt-[57px] grid gap-[5px]"
-          aria-label="Primary navigation"
-        >
-          {navigation.map((item) => (
-            <Link
-              className={`block w-full rounded-lg border-0 px-[13px] py-[11px] text-left text-[.88rem] font-semibold no-underline transition-colors ${
-                isCurrentPath(pathname, item.href)
-                  ? "bg-soft-violet text-violet"
-                  : "hover:bg-soft-violet hover:text-violet bg-transparent text-[#65636c]"
-              }`}
-              href={item.href}
-              key={item.href}
+    return (
+        <header className="border-line sticky top-0 z-40 border-b bg-[color-mix(in_oklch,var(--bg)_90%,transparent)] backdrop-blur-xl">
+            <nav
+                className="mx-auto flex min-h-[72px] max-w-[1120px] items-center justify-between gap-5 px-6 max-[620px]:min-h-16 max-[620px]:px-4"
+                aria-label="App navigation"
             >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="mt-auto">
-          <button
-            className="hover:bg-soft-violet hover:text-violet block w-full cursor-pointer rounded-lg border-0 bg-transparent px-[13px] py-[11px] text-left text-[.88rem] font-semibold text-[#65636c] transition-colors"
-            onClick={handleSignOut}
-            type="button"
-          >
-            Sign out
-          </button>
-        </div>
-      </aside>
-
-      <nav
-        className={`border-line before:bg-soft-violet fixed right-0 bottom-0 left-0 z-20 hidden grid-cols-2 gap-2 border-t bg-white/95 px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(39,36,48,0.1)] backdrop-blur-md before:pointer-events-none before:absolute before:top-2 before:left-3 before:h-14 before:w-[calc(50%-1rem)] before:rounded-xl before:shadow-[inset_0_0_0_1px_rgba(75,64,233,0.08)] before:transition-transform before:duration-200 before:ease-out before:content-[''] motion-reduce:before:transition-none max-[760px]:grid ${
-          manageIsCurrent
-            ? "before:translate-x-[calc(100%+0.5rem)]"
-            : "before:translate-x-0"
-        }`}
-        aria-label="Mobile navigation"
-      >
-        {navigation.map((item) => {
-          const Icon = item.icon;
-          const isCurrent = isCurrentPath(pathname, item.href);
-
-          return (
-            <Link
-              aria-current={isCurrent ? "page" : undefined}
-              className={`relative z-10 flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[.72rem] font-[680] no-underline transition-colors duration-200 ${
-                isCurrent
-                  ? "text-violet"
-                  : "text-[#77727f] hover:text-[#27242d]"
-              }`}
-              href={item.href}
-              key={item.href}
-            >
-              <Icon aria-hidden="true" className="size-5 stroke-[2.2]" />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-    </>
-  );
+                <Link
+                    href="/app"
+                    className="inline-flex min-h-11 items-center gap-2.5 text-xl font-[750] tracking-[-0.03em] max-[430px]:gap-2 max-[430px]:text-lg"
+                    aria-label="subTracker overview"
+                >
+                    <span
+                        className="border-line bg-surface grid size-[30px] content-center gap-1 rounded-[9px] border p-[7px] shadow-[0_5px_16px_var(--fg-soft)]"
+                        aria-hidden="true"
+                    >
+                        <i className="bg-ink block h-0.5 rounded-full" />
+                        <i className="bg-brand block h-0.5 w-[70%] rounded-full" />
+                        <i className="bg-ink block h-0.5 rounded-full" />
+                    </span>
+                    <span className="max-[390px]:sr-only">
+                        sub<span className="text-brand">Tracker</span>
+                    </span>
+                </Link>
+                <div className=" flex items-center gap-1 rounded-xl">
+                    {navigation.map((item) => (
+                        <Link
+                            className={`inline-flex min-h-11 items-center justify-center rounded-[9px] px-4 text-sm font-semibold transition-colors max-[430px]:px-3 hover:bg-ink-soft duration-300`}
+                            href={item.href}
+                            key={item.href}
+                            aria-current={
+                                isCurrentPath(pathname, item.href) ? "page" : undefined
+                            }
+                        >
+                            {item.label}
+                        </Link>
+                    ))}
+                </div>
+            </nav>
+        </header>
+    );
 }

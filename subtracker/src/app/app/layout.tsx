@@ -9,11 +9,9 @@ export default async function AuthenticatedAppLayout({
   if (!session?.user) redirect("/");
 
   return (
-    <main className="grid min-h-screen grid-cols-[234px_minmax(0,1fr)] bg-[#fbfbfa] max-[760px]:block max-[760px]:pb-[86px]">
+    <div className="bg-page text-ink min-h-screen">
       <AppNavigation />
-      <section className="mx-auto w-[min(1160px,calc(100vw-234px))] px-11 pb-20 max-[760px]:w-full max-[760px]:px-[19px] max-[760px]:pb-[35px]">
-        {children}
-      </section>
-    </main>
+      <main>{children}</main>
+    </div>
   );
 }
