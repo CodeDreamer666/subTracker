@@ -1,16 +1,16 @@
-import { BillingInterval } from "../../../../generated/prisma";
+import { BillingInterval } from "@prisma/client";
 import {
     strongSubscriptionPhrases,
     ownershipPhrases,
     recurringPhrases,
     promotionalPhrases,
-    nonPaidPhrases
+    nonPaidPhrases,
 } from "./detection-phrases";
 import type {
     EmailForDetection,
     DetectionResult,
-    SubscriptionCandidate
-} from "./detection-types"
+    SubscriptionCandidate,
+} from "./detection-types";
 
 function containsAny(text: string, phrases: string[]) {
     return phrases.some((phrase) => text.includes(phrase));

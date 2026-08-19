@@ -1,161 +1,165 @@
 generator client {
-    provider = "prisma-client-js"
-    output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum BillingInterval {
-    MONTHLY
-    YEARLY
+  MONTHLY
+  YEARLY
 }
 
 enum SubscriptionSource {
-    MANUAL
-    GMAIL
+  MANUAL
+  GMAIL
 }
 
 enum SubscriptionStatus {
-    ACTIVE
-    CANCELLED
+  ACTIVE
+  CANCELLED
 }
 
 enum RenewalIntent {
-    UNDECIDED
-    KEEP
-    CANCEL
+  UNDECIDED
+  KEEP
+  CANCEL
 }
 
 enum GmailScanStatus {
-    RUNNING
-    REVIEW_READY
-    NO_RESULTS
-    FAILED
-    CONFIRMED
+  RUNNING
+  REVIEW_READY
+  NO_RESULTS
+  FAILED
+  CONFIRMED
 }
 
 enum CandidateDecision {
-    PENDING
-    ACCEPTED
-    DISMISSED
+  PENDING
+  ACCEPTED
+  DISMISSED
 }
 
 model User {
-    id            String    @id
-    name          String
-    email         String    @unique
-    emailVerified Boolean   @default(false)
-    image         String?
-    createdAt     DateTime  @default(now())
-    updatedAt     DateTime  @updatedAt
-    sessions      Session[]
-    accounts      Account[]
+  id            String         @id
+  name          String
+  email         String         @unique
+  emailVerified Boolean        @default(false)
+  image         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  subscriptions Subscription[]
+  gmailScans    GmailScan[]
 }
 
 model Session {
-    id        String   @id
-    expiresAt DateTime
-    token     String   @unique
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    ipAddress String?
-    userAgent String?
-    userId    String
-    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@index([userId])
+  @@index([userId])
 }
 
 model Account {
-    id                    String    @id
-    accountId             String
-    providerId            String
-    userId                String
-    accessToken           String?
-    refreshToken          String?
-    idToken               String?
-    accessTokenExpiresAt  DateTime?
-    refreshTokenExpiresAt DateTime?
-    scope                 String?
-    password              String?
-    createdAt             DateTime  @default(now())
-    updatedAt             DateTime  @updatedAt
-    user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([providerId, accountId])
-    @@index([userId])
+  @@unique([providerId, accountId])
+  @@index([userId])
 }
 
 model Verification {
-    id         String   @id
-    identifier String
-    value      String
-    expiresAt  DateTime
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-    @@index([identifier])
+  @@index([identifier])
 }
 
 model Subscription {
-    id                 String             @id @default(cuid())
-    userId             String
-    name               String
-    merchantKey        String?
-    planName           String?
-    amountMinor        Int?
-    billingInterval    BillingInterval?
-    nextRenewalOn      DateTime?          @db.Date
-    cancellationUrl    String?
-    reminderDaysBefore Int?
-    source             SubscriptionSource
-    status             SubscriptionStatus @default(ACTIVE)
-    renewalIntent      RenewalIntent      @default(UNDECIDED)
-    cancelledAt        DateTime?
-    accessEndsOn       DateTime?          @db.Date
-    createdAt          DateTime           @default(now())
-    updatedAt          DateTime           @updatedAt
+  id                 String             @id @default(cuid())
+  userId             String
+  name               String
+  merchantKey        String?
+  planName           String?
+  amountMinor        Int?
+  billingInterval    BillingInterval?
+  nextRenewalOn      DateTime?          @db.Date
+  cancellationUrl    String?
+  reminderDaysBefore Int?
+  source             SubscriptionSource
+  status             SubscriptionStatus @default(ACTIVE)
+  renewalIntent      RenewalIntent      @default(UNDECIDED)
+  cancelledAt        DateTime?
+  accessEndsOn       DateTime?          @db.Date
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@index([userId, status])
-    @@index([userId, nextRenewalOn])
-    @@index([userId, createdAt])
+  @@unique([userId, merchantKey])
+  @@index([userId, status])
+  @@index([userId, nextRenewalOn])
+  @@index([userId, createdAt])
 }
 
 model GmailScan {
-    id                String                 @id @default(cuid())
-    userId            String
-    status            GmailScanStatus
-    activeKey         String?                @unique
-    pageToken         String?
-    estimatedMessages Int                    @default(0)
-    processedMessages Int                    @default(0)
-    errorCode         String?
-    startedAt         DateTime               @default(now())
-    completedAt       DateTime?
-    createdAt         DateTime               @default(now())
-    updatedAt         DateTime               @updatedAt
-    candidates        DetectedSubscription[]
+  id                String                 @id @default(cuid())
+  userId            String
+  status            GmailScanStatus
+  activeKey         String?                @unique
+  pageToken         String?
+  estimatedMessages Int                    @default(0)
+  processedMessages Int                    @default(0)
+  errorCode         String?
+  startedAt         DateTime               @default(now())
+  completedAt       DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  candidates        DetectedSubscription[]
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@index([userId, status])
+  @@index([userId, status])
 }
 
 model DetectedSubscription {
-    id              String            @id @default(cuid())
-    scanId          String
-    scan            GmailScan         @relation(fields: [scanId], references: [id], onDelete: Cascade)
-    sourceMessageId String
-    merchantKey     String
-    name            String
-    amountMinor     Int?
-    billingInterval BillingInterval?
-    planName        String?
-    nextRenewalOn   DateTime?         @db.Date
-    messageDate     DateTime          @db.Date
-    decision        CandidateDecision @default(PENDING)
-    subscriptionId  String?
+  id              String            @id @default(cuid())
+  scanId          String
+  scan            GmailScan         @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  sourceMessageId String
+  merchantKey     String
+  name            String
+  amountMinor     Int?
+  billingInterval BillingInterval?
+  planName        String?
+  nextRenewalOn   DateTime?         @db.Date
+  messageDate     DateTime          @db.Date
+  decision        CandidateDecision @default(PENDING)
+  subscriptionId  String?
 
-    @@unique([scanId, merchantKey])
+  @@unique([scanId, merchantKey])
 }

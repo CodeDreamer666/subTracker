@@ -14,18 +14,20 @@ import {
 } from "~/components/ui/dialog";
 import { api } from "~/trpc/react";
 
+export type EditableSubscription = {
+    id: string;
+    name: string;
+    amountMinor: number | null;
+    billingInterval: "MONTHLY" | "YEARLY" | null;
+    nextRenewalOn: Date | null;
+};
+
 type ManualSubscriptionDialogProps = {
     trigger?: ReactNode;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     showOverviewAfterCreate?: boolean;
-    subscription?: {
-        id: string;
-        name: string;
-        amountMinor: number | null;
-        billingInterval: "MONTHLY" | "YEARLY" | null;
-        nextRenewalOn: Date | null;
-    };
+    subscription?: EditableSubscription;
 };
 
 function textField(formData: FormData, name: string) {
@@ -33,7 +35,7 @@ function textField(formData: FormData, name: string) {
     return typeof value === "string" ? value : "";
 }
 
-export function ManualSubscriptionDialog({
+export default function ManualSubscriptionDialog({
     trigger,
     open,
     onOpenChange,
@@ -181,7 +183,7 @@ export function ManualSubscriptionDialog({
                             <span className="text-muted font-normal">(optional)</span>
                         </span>
                         <input
-                            className="border-line h-11 rounded-[10px] border bg-white px-3 font-normal "
+                            className="border-line h-11 rounded-[10px] border bg-white px-3 font-normal"
                             name="nextRenewalOn"
                             type="date"
                             defaultValue={subscription?.nextRenewalOn

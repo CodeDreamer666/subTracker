@@ -1,4 +1,4 @@
-import { BillingInterval } from "../../../../generated/prisma";
+import type { BillingInterval } from "@prisma/client";
 
 export type EmailForDetection = {
     id: string;

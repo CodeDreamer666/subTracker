@@ -1,6 +1,8 @@
 import type { EmailForDetection } from "./detection/detection-types";
 
 const gmailApi = "https://gmail.googleapis.com/gmail/v1/users/me";
+const gmailRequestTimeoutMs = 10_000;
+export const gmailMessageLimit = 500;
 
 type GmailPart = {
     mimeType?: string;
@@ -19,6 +21,14 @@ type GmailMessage = {
 type GmailMessagePage = {
     messages?: Array<{ id?: string }>;
 };
+
+function gmailRequest(url: URL, accessToken: string) {
+    return fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: "no-store",
+        signal: AbortSignal.timeout(gmailRequestTimeoutMs),
+    });
+}
 
 function findTextBody(part: GmailPart): string {
     if (part.mimeType === "text/plain" && part.body?.data) {
@@ -51,23 +61,16 @@ export async function listGmailMessageIds(
     const listUrl = new URL(`${gmailApi}/messages`);
 
     listUrl.searchParams.set("labelIds", "INBOX");
-    listUrl.searchParams.set("maxResults", "500");
+    listUrl.searchParams.set("maxResults", String(gmailMessageLimit));
     if (timeFilter) listUrl.searchParams.set("q", timeFilter);
 
-    const response = await fetch(listUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        cache: "no-store",
-    });
-
-    if (!response.ok) {
-        throw new Error(`GMAIL_${response.status}`);
-    }
+    const response = await gmailRequest(listUrl, accessToken);
+    if (!response.ok) throw new Error(`GMAIL_${response.status}`);
 
     const data = (await response.json()) as GmailMessagePage;
-    
-    return (data.messages ?? []).flatMap((message) =>
-        message.id ? [message.id] : [],
-    );
+    return (data.messages ?? [])
+        .flatMap((message) => (message.id ? [message.id] : []))
+        .slice(0, gmailMessageLimit);
 }
 
 export async function getGmailMessageForDetection(
@@ -83,12 +86,8 @@ export async function getGmailMessageForDetection(
         "id,internalDate,snippet,payload(headers,body/data,parts(mimeType,body/data,parts(mimeType,body/data)))",
     );
 
-    const response = await fetch(messageUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        cache: "no-store",
-    });
-
-    if (!response.ok) return null;
+    const response = await gmailRequest(messageUrl, accessToken);
+    if (!response.ok) throw new Error(`GMAIL_${response.status}`);
 
     const message = (await response.json()) as GmailMessage;
     if (!message.id) return null;

@@ -11,7 +11,7 @@ function isCurrentPath(pathname: string, href: string) {
     return href === "/app" ? pathname === href : pathname.startsWith(href);
 }
 
-export function AppNavigation() {
+export default function AppNavigation() {
     const pathname = usePathname();
 
     return (
@@ -37,10 +37,10 @@ export function AppNavigation() {
                         sub<span className="text-brand">Tracker</span>
                     </span>
                 </Link>
-                <div className=" flex items-center gap-1 rounded-xl">
+                <div className="flex items-center gap-1 rounded-xl">
                     {navigation.map((item) => (
                         <Link
-                            className={`inline-flex min-h-11 items-center justify-center rounded-[9px] px-4 text-sm font-semibold transition-colors max-[430px]:px-3 hover:bg-ink-soft duration-300`}
+                            className={`hover:bg-ink-soft inline-flex min-h-11 items-center justify-center rounded-[9px] px-4 text-sm font-semibold transition-colors duration-300 max-[430px]:px-3`}
                             href={item.href}
                             key={item.href}
                             aria-current={

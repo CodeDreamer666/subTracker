@@ -1,6 +1,4 @@
-import type {
-    SubscriptionCandidate,
-} from "~/server/gmail/detection/detection-types"
+import type { SubscriptionCandidate } from "~/server/gmail/detection/detection-types";
 
 type FrankfurterRate = {
     base?: string;
@@ -18,7 +16,6 @@ type SourceCurrency = NonNullable<SubscriptionCandidate["sourceCurrency"]>;
 export default async function normalizeCandidateAmountsToUsd(
     candidates: SubscriptionCandidate[],
 ): Promise<NormalizedSubscriptionCandidate[]> {
-
     const currenciesToConvert = new Set<SourceCurrency>();
 
     for (const candidate of candidates) {
@@ -37,7 +34,10 @@ export default async function normalizeCandidateAmountsToUsd(
         Array.from(currenciesToConvert).map(async (sourceCurrency) => {
             const response = await fetch(
                 `https://api.frankfurter.dev/v2/rate/${encodeURIComponent(sourceCurrency)}/USD`,
-                { cache: "no-store" },
+                {
+                    cache: "no-store",
+                    signal: AbortSignal.timeout(10_000),
+                },
             );
 
             if (!response.ok) throw new Error("FRANKFURTER_UNAVAILABLE");
@@ -78,5 +78,5 @@ export default async function normalizeCandidateAmountsToUsd(
             ...candidateWithoutSourceCurrency,
             amountMinor: Math.round(candidate.amountMinor * usdRate),
         };
-    })
+    });
 }
